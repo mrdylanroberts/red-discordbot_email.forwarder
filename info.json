@@ -1,0 +1,24 @@
+{
+    "name": "EmailCog",
+    "short": "Forward Gmail messages to Discord channels",
+    "description": "A cog that forwards unread Gmail messages to configured Discord channels using Gmail API. Supports per-guild configuration and channel-specific email sender filtering.",
+    "end_user_data_statement": "This cog stores email sender configurations for Discord channels and Gmail API credentials locally.",
+    "install_msg": "Thanks for installing EmailCog! Please make sure to set up Gmail API credentials and place them in the cog's data directory as 'credentials.json'. Use `[p]help emailcog` to see available commands.",
+    "author": ["mrdyl"],
+    "required_cogs": {},
+    "requirements": [
+        "google-api-python-client>=2.0.0",
+        "google-auth-oauthlib>=0.4.6",
+        "google-auth-httplib2>=0.1.0"
+    ],
+    "tags": [
+        "email",
+        "gmail",
+        "notifications",
+        "utility"
+    ],
+    "min_bot_version": "3.5.0",
+    "hidden": false,
+    "disabled": false,
+    "type": "COG"
+}
