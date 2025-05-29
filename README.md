@@ -20,7 +20,7 @@ A Red-DiscordBot cog that forwards unread Gmail messages to configured Discord c
    ```
    [p]repo add email-cog https://github.com/mrdylanroberts/red-discordbot_email.forwarder
    ```
-3. Install the cog:
+3. Install the cog: *broken atm fix later*
    ```
    [p]cog install email-cog emailcog
    ```
