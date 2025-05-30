@@ -1,13 +1,17 @@
 import asyncio
 import os
 import pickle
+import json
+import base64
 from datetime import datetime, timezone
 from typing import Dict, List
+from pathlib import Path
 
 import discord
 from redbot.core import Config, commands
 from redbot.core.bot import Red
 from redbot.core.config import Group
+from redbot.core.data_manager import cog_data_path
 from redbot.core.utils.chat_formatting import box, pagify
 
 from google.auth.transport.requests import Request
@@ -15,6 +19,13 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+
+# Optional: For encryption
+try:
+    from cryptography.fernet import Fernet
+    ENCRYPTION_AVAILABLE = True
+except ImportError:
+    ENCRYPTION_AVAILABLE = False
 
 class EmailCog(commands.Cog):
     """Forward Gmail messages to Discord channels."""
@@ -35,12 +46,35 @@ class EmailCog(commands.Cog):
         
         # Gmail API settings
         self.SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
-        self.TOKEN_FILE = 'token.pickle'
-        self.CREDENTIALS_FILE = 'credentials.json'
+        self.data_path = cog_data_path(self)
+        self.TOKEN_FILE = self.data_path / 'token.encrypted' if ENCRYPTION_AVAILABLE else self.data_path / 'token.pickle'
         self.service = None
+        
+        # Create data directory if it doesn't exist
+        os.makedirs(self.data_path, exist_ok=True)
+        
+        # Encryption key (generate or load)
+        self.encryption_key = None
+        if ENCRYPTION_AVAILABLE:
+            self._setup_encryption()
 
         # Start background task
         self.bg_task = self.bot.loop.create_task(self.check_emails_loop())
+
+    def _setup_encryption(self):
+        """Setup encryption for token storage."""
+        key_file = self.data_path / 'key.bin'
+        
+        if os.path.exists(key_file):
+            with open(key_file, 'rb') as f:
+                self.encryption_key = f.read()
+        else:
+            # Generate a new key
+            self.encryption_key = Fernet.generate_key()
+            # Save the key with restricted permissions
+            with open(key_file, 'wb') as f:
+                f.write(self.encryption_key)
+            os.chmod(key_file, 0o600)  # Only owner can read/write
 
     def cog_unload(self):
         if self.bg_task:
@@ -50,22 +84,70 @@ class EmailCog(commands.Cog):
         """Authenticate with Gmail API using OAuth2."""
         creds = None
 
+        # Try to load token from file
         if os.path.exists(self.TOKEN_FILE):
-            with open(self.TOKEN_FILE, 'rb') as token:
-                creds = pickle.load(token)
+            try:
+                if ENCRYPTION_AVAILABLE and self.encryption_key:
+                    # Decrypt token
+                    f = Fernet(self.encryption_key)
+                    with open(self.TOKEN_FILE, 'rb') as token:
+                        encrypted_data = token.read()
+                    decrypted_data = f.decrypt(encrypted_data)
+                    creds = pickle.loads(decrypted_data)
+                else:
+                    # Regular pickle loading
+                    with open(self.TOKEN_FILE, 'rb') as token:
+                        creds = pickle.load(token)
+            except Exception as e:
+                self.bot.logger.error(f"Error loading token: {e}")
+                creds = None
 
+        # If no valid credentials, get new ones
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
                 creds.refresh(Request())
             else:
-                if not os.path.exists(self.CREDENTIALS_FILE):
-                    raise FileNotFoundError(f'Missing {self.CREDENTIALS_FILE}. Please download it from Google Cloud Console.')
-
-                flow = InstalledAppFlow.from_client_secrets_file(self.CREDENTIALS_FILE, self.SCOPES)
+                # Check for credentials in environment variable first
+                creds_json = os.environ.get('GMAIL_CREDENTIALS')
+                
+                if creds_json:
+                    # Use credentials from environment variable
+                    try:
+                        creds_info = json.loads(creds_json)
+                        flow = InstalledAppFlow.from_client_secrets_dict(creds_info, self.SCOPES)
+                    except json.JSONDecodeError:
+                        self.bot.logger.error("Invalid JSON in GMAIL_CREDENTIALS environment variable")
+                        raise ValueError("Invalid credentials format in environment variable")
+                else:
+                    # Look for credentials file
+                    creds_file = self.data_path / 'credentials.json'
+                    
+                    if not os.path.exists(creds_file):
+                        raise FileNotFoundError(
+                            f'Missing credentials. Please set GMAIL_CREDENTIALS environment variable '
+                            f'or place credentials.json in {self.data_path}'
+                        )
+                    
+                    flow = InstalledAppFlow.from_client_secrets_file(str(creds_file), self.SCOPES)
+                
+                # Complete the OAuth flow
                 creds = flow.run_local_server(port=0)
 
-            with open(self.TOKEN_FILE, 'wb') as token:
-                pickle.dump(creds, token)
+            # Save the credentials for the next run
+            if ENCRYPTION_AVAILABLE and self.encryption_key:
+                # Encrypt token before saving
+                f = Fernet(self.encryption_key)
+                token_bytes = pickle.dumps(creds)
+                encrypted_token = f.encrypt(token_bytes)
+                
+                with open(self.TOKEN_FILE, 'wb') as token:
+                    token.write(encrypted_token)
+            else:
+                with open(self.TOKEN_FILE, 'wb') as token:
+                    pickle.dump(creds, token)
+                    
+            # Set secure permissions
+            os.chmod(self.TOKEN_FILE, 0o600)  # Only owner can read/write
 
         self.service = build('gmail', 'v1', credentials=creds)
 
@@ -246,7 +328,13 @@ class EmailCog(commands.Cog):
                     )
 
             except Exception as e:
-                pass
+                self.bot.logger.error(f"Error in email checking: {e}")
 
-            check_interval = await self.config.guild(guild).check_interval()
+            # Get check interval from config
+            try:
+                guild = self.bot.guilds[0]  # Use first guild's interval
+                check_interval = await self.config.guild(guild).check_interval()
+            except (IndexError, AttributeError):
+                check_interval = 5  # Default to 5 minutes
+                
             await asyncio.sleep(check_interval * 60)  # Convert minutes to seconds

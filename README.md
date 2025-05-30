@@ -10,6 +10,7 @@ A Red-DiscordBot cog that forwards unread Gmail messages to configured Discord c
 - Rich Discord embeds for email content
 - Mark forwarded emails as read
 - Per-guild configuration storage
+- Secure credential storage with optional encryption
 
 ## Installation
 
@@ -56,11 +57,47 @@ A Red-DiscordBot cog that forwards unread Gmail messages to configured Discord c
 
 ## Gmail API Setup
 
+### Option 1: Using Environment Variables (Most Secure)
+
 1. Create a new project in Google Cloud Console
 2. Enable Gmail API for your project
 3. Create OAuth 2.0 credentials
-4. Download the credentials and save as `credentials.json` in your Red bot's data path
-   - Usually in `~/.local/share/Red-DiscordBot/data/emailcog/`
+4. Download the credentials JSON file
+5. Set the environment variable `GMAIL_CREDENTIALS` with the contents of the JSON file:
+
+   ```bash
+   # Linux/Mac
+   export GMAIL_CREDENTIALS=$(cat /path/to/credentials.json)
+   
+   # Windows PowerShell
+   $env:GMAIL_CREDENTIALS = Get-Content -Raw -Path "C:\path\to\credentials.json"
+   ```
+
+   For permanent storage, add this to your startup script or environment configuration.
+
+### Option 2: Using Credentials File
+
+1. Create a new project in Google Cloud Console
+2. Enable Gmail API for your project
+3. Create OAuth 2.0 credentials
+4. Download the credentials and save as `credentials.json` in your Red bot's data path for this cog
+   - Usually in `~/.local/share/Red-DiscordBot/data/EmailCog/`
+   - On Windows: `%APPDATA%\Red-DiscordBot\data\EmailCog\`
+
+## Security Features
+
+### Token Encryption
+
+The cog now supports encrypting the OAuth token file for additional security. This requires the `cryptography` package, which is included in the requirements.txt file.
+
+When the cog loads, it will:
+1. Automatically generate an encryption key if one doesn't exist
+2. Store the key securely with restricted permissions
+3. Use the key to encrypt/decrypt the OAuth token
+
+### File Permissions
+
+All sensitive files (credentials, tokens, encryption keys) are stored with restricted permissions (600) to ensure only the owner can read or write them.
 
 ## Usage
 
@@ -90,7 +127,7 @@ All commands use the prefix configured for your bot (default is `[p]`). Examples
 ## Notes
 
 - The first time you run the bot, it will open a browser window for Gmail OAuth2 authentication
-- Token is stored securely in your Red bot's data directory
+- Token is stored securely (encrypted if cryptography is available) in your Red bot's data directory
 - Emails are checked every 5 minutes by default (configurable with `[p]emailcog interval`)
 - Only unread emails are forwarded
 - Forwarded emails are marked as read automatically
