@@ -20,15 +20,13 @@ A Red-DiscordBot cog that forwards unread Gmail messages to configured Discord c
    ```
    [p]repo add email-cog https://github.com/mrdylanroberts/red-discordbot_email.forwarder
    ```
-<<<<<<< HEAD
 3. Install the cog:
    ```
-   !cog install email-cog EmailCog
+   [p]cog install email-cog EmailCog
    ```
 4. Load the cog:
    ```
-   !load EmailCog
-   ```
+   [p]load EmailCog
    ```
 
 ### Method 2: Manual Installation
@@ -53,7 +51,7 @@ A Red-DiscordBot cog that forwards unread Gmail messages to configured Discord c
    ```
 4. Load the cog in Discord:
    ```
-   !load EmailCog
+   [p]load EmailCog
    ```
 
 ## Gmail API Setup
@@ -68,23 +66,8 @@ A Red-DiscordBot cog that forwards unread Gmail messages to configured Discord c
 
 ### Commands
 
-<<<<<<< HEAD
-All commands use the prefix configured for your bot (default is `!`). Examples below use `!` as the prefix.
+All commands use the prefix configured for your bot (default is `[p]`). Examples below use `[p]` as the prefix.
 
-- `!emailcog add <channel> <allowed_senders>`: Configure email forwarding for a channel
-  - `channel`: The channel mention or ID
-  - `allowed_senders`: Comma-separated list of allowed email senders
-  - Example: `!emailcog add #announcements news@example.com,updates@example.com`
-
-- `!emailcog list`: List all email forwarding configurations for the server
-
-- `!emailcog remove <channel>`: Remove email forwarding configuration for a channel
-  - `channel`: The channel mention or ID
-
-- `!emailcog interval <minutes>`: Set the email checking interval
-  - `minutes`: Number of minutes between email checks (minimum 1 minute)
-  - Example: `!emailcog interval 10` to check emails every 10 minutes
-=======
 - `[p]emailcog add <channel> <allowed_senders>`: Configure email forwarding for a channel
   - `channel`: The channel mention or ID
   - `allowed_senders`: Comma-separated list of allowed email senders
@@ -98,7 +81,6 @@ All commands use the prefix configured for your bot (default is `!`). Examples b
 - `[p]emailcog interval <minutes>`: Set the email checking interval
   - `minutes`: Number of minutes between email checks (minimum 1 minute)
   - Example: `[p]emailcog interval 10` to check emails every 10 minutes
->>>>>>> 7d444ba4d261f3799bc9eb025b9986f125f16740
 
 ### Permissions
 
@@ -109,11 +91,7 @@ All commands use the prefix configured for your bot (default is `!`). Examples b
 
 - The first time you run the bot, it will open a browser window for Gmail OAuth2 authentication
 - Token is stored securely in your Red bot's data directory
-<<<<<<< HEAD
-- Emails are checked every 5 minutes by default (configurable with `!emailcog interval`)
-=======
 - Emails are checked every 5 minutes by default (configurable with `[p]emailcog interval`)
->>>>>>> 7d444ba4d261f3799bc9eb025b9986f125f16740
 - Only unread emails are forwarded
 - Forwarded emails are marked as read automatically
 - Configurations are stored per guild using Red's built-in Config system
