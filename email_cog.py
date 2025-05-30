@@ -29,6 +29,7 @@ class EmailCog(commands.Cog):
         default_guild = {
             "channel_configs": {},  # channel_id -> list of allowed senders
             "last_check_time": None,
+            "check_interval": 5,  # Default check interval in minutes
         }
         self.config.register_guild(**default_guild)
         
@@ -73,7 +74,27 @@ class EmailCog(commands.Cog):
     @commands.admin_or_permissions(administrator=True)
     async def emailcog(self, ctx: commands.Context):
         """Email forwarding settings."""
-        pass
+        if ctx.invoked_subcommand is None:
+            await ctx.send_help()
+
+    @emailcog.command(name="interval")
+    async def set_interval(self, ctx: commands.Context, minutes: int):
+        """Set the email checking interval in minutes (minimum 1 minute).
+
+        Args:
+            minutes: The interval in minutes between email checks
+        """
+        if minutes < 1:
+            await ctx.send("The check interval must be at least 1 minute.")
+            return
+
+        await self.config.guild(ctx.guild).check_interval.set(minutes)
+        await ctx.send(f"Email check interval set to {minutes} minutes.")
+        
+        # Restart the background task with new interval
+        if self.bg_task:
+            self.bg_task.cancel()
+        self.bg_task = self.bot.loop.create_task(self.check_emails_loop())
 
     @emailcog.command(name="add")
     async def add_sender(self, ctx: commands.Context, channel: str, *, allowed_senders: str):
@@ -227,4 +248,5 @@ class EmailCog(commands.Cog):
             except Exception as e:
                 pass
 
-            await asyncio.sleep(300)  # Check every 5 minutes
+            check_interval = await self.config.guild(guild).check_interval()
+            await asyncio.sleep(check_interval * 60)  # Convert minutes to seconds
